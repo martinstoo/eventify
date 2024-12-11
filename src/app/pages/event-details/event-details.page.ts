@@ -13,7 +13,7 @@ import { NotificationService } from '../../services/notification.service';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button></ion-back-button>
+          <ion-back-button defaultHref="/dashboard"></ion-back-button>
         </ion-buttons>
         <ion-title>{{ event?.title }}</ion-title>
         <ion-buttons slot="end">
@@ -153,8 +153,9 @@ export class EventDetailsPage implements OnInit {
   }
 
   toggleDarkMode(event: CustomEvent) {
-    this.isDarkMode = event.detail.checked;
-    document.body.classList.toggle('dark', this.isDarkMode);
+    const isDark = event.detail.checked;
+    document.body.classList.toggle('dark', isDark);
+    this.isDarkMode = isDark;
   }
 }
 
