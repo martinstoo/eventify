@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { IonContent, IonHeader, IonTitle, IonToolbar, IonList, IonItem, IonLabel, IonButton, IonIcon, IonInput, IonButtons, IonBackButton } from '@ionic/angular/standalone';
+import { IonContent, IonHeader, IonTitle, IonToolbar, IonList, IonItem, IonLabel, IonButton, IonIcon, IonInput, IonButtons, IonBackButton, IonToggle } from '@ionic/angular/standalone';
 import { NgFor, AsyncPipe } from '@angular/common';
 import { EventService, Guest } from '../../services/event.service';
 import { Observable } from 'rxjs';
@@ -15,6 +15,11 @@ import { Observable } from 'rxjs';
           <ion-back-button></ion-back-button>
         </ion-buttons>
         <ion-title>Guest List</ion-title>
+        <ion-buttons slot="end">
+          <ion-toggle (ionChange)="toggleDarkMode($event)" [checked]="isDarkMode">
+            <ion-icon slot="start" [name]="isDarkMode ? 'moon' : 'sunny'"></ion-icon>
+          </ion-toggle>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
@@ -51,6 +56,7 @@ import { Observable } from 'rxjs';
     IonInput,
     IonButtons,
     IonBackButton,
+    IonToggle,
     NgFor,
     AsyncPipe,
     ReactiveFormsModule
@@ -60,6 +66,7 @@ export class GuestListPage implements OnInit {
   eventId: number = 0;
   guests$: Observable<Guest[]>;
   guestForm: FormGroup;
+  isDarkMode = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -78,6 +85,7 @@ export class GuestListPage implements OnInit {
       this.eventId = parseInt(id, 10);
       this.loadGuests();
     }
+    this.isDarkMode = document.body.classList.contains('dark');
   }
 
   private loadGuests() {
@@ -95,5 +103,11 @@ export class GuestListPage implements OnInit {
   async removeGuest(guest: Guest) {
     await this.eventService.removeGuest(guest.id);
     this.loadGuests();
+  }
+
+  toggleDarkMode(event: CustomEvent) {
+    const isDark = event.detail.checked;
+    document.body.classList.toggle('dark', isDark);
+    this.isDarkMode = isDark;
   }
 }

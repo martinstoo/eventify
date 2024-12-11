@@ -19,18 +19,18 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.initializeDarkMode();
+    this.initializeTheme();
   }
 
-  private initializeDarkMode() {
+  private initializeTheme() {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-    this.toggleDarkTheme(prefersDark.matches);
+    this.setTheme(prefersDark.matches);
 
-    prefersDark.addEventListener('change', (mediaQuery) => this.toggleDarkTheme(mediaQuery.matches));
+    prefersDark.addEventListener('change', (mediaQuery) => this.setTheme(mediaQuery.matches));
   }
 
-  private toggleDarkTheme(shouldAdd: boolean) {
-    document.body.classList.toggle('dark', shouldAdd);
+  private setTheme(isDark: boolean) {
+    document.body.classList.toggle('dark', isDark);
   }
 }
 

@@ -113,8 +113,9 @@ export class DashboardPage implements OnInit {
   }
 
   toggleDarkMode(event: CustomEvent) {
-    this.isDarkMode = event.detail.checked;
-    document.body.classList.toggle('dark', this.isDarkMode);
+    const isDark = event.detail.checked;
+    document.body.classList.toggle('dark', isDark);
+    this.isDarkMode = isDark;
   }
 
   async getCurrentLocation() {

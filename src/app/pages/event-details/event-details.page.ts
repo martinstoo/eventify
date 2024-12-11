@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { IonContent, IonHeader, IonTitle, IonToolbar, IonButton, IonIcon, IonInput, IonTextarea, IonButtons, IonBackButton, IonItem } from '@ionic/angular/standalone';
+import { IonContent, IonHeader, IonTitle, IonToolbar, IonButton, IonIcon, IonInput, IonTextarea, IonButtons, IonBackButton, IonItem, IonToggle } from '@ionic/angular/standalone';
 import { Geolocation } from '@capacitor/geolocation';
 import { Camera, CameraResultType } from '@capacitor/camera';
 import { EventService, Event } from '../../services/event.service';
@@ -16,6 +16,11 @@ import { NotificationService } from '../../services/notification.service';
           <ion-back-button></ion-back-button>
         </ion-buttons>
         <ion-title>{{ event?.title }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-toggle (ionChange)="toggleDarkMode($event)" [checked]="isDarkMode">
+            <ion-icon slot="start" [name]="isDarkMode ? 'moon' : 'sunny'"></ion-icon>
+          </ion-toggle>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
@@ -51,17 +56,18 @@ import { NotificationService } from '../../services/notification.service';
   `,
   standalone: true,
   imports: [
-    IonContent, 
-    IonHeader, 
-    IonTitle, 
-    IonToolbar, 
-    IonButton, 
-    IonIcon, 
+    IonContent,
+    IonHeader,
+    IonTitle,
+    IonToolbar,
+    IonButton,
+    IonIcon,
     IonInput,
     IonTextarea,
     IonButtons,
     IonBackButton,
     IonItem,
+    IonToggle,
     ReactiveFormsModule,
     RouterLink
   ],
@@ -69,6 +75,7 @@ import { NotificationService } from '../../services/notification.service';
 export class EventDetailsPage implements OnInit {
   event: Event | undefined;
   eventForm: FormGroup;
+  isDarkMode = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -92,6 +99,7 @@ export class EventDetailsPage implements OnInit {
         this.eventForm.patchValue(this.event);
       }
     });
+    this.isDarkMode = document.body.classList.contains('dark');
   }
 
   saveEvent() {
@@ -110,7 +118,7 @@ export class EventDetailsPage implements OnInit {
 
   deleteEvent() {
     if (this.event) {
-      this.eventService.deleteEvent(this.event.id!);
+      this.eventService.deleteEvent(this.event.id);
       this.notificationService.log('Event deleted');
       this.router.navigate(['/dashboard']);
     }
@@ -142,6 +150,11 @@ export class EventDetailsPage implements OnInit {
       console.error('Error taking picture:', error);
       this.notificationService.log('Error taking picture');
     }
+  }
+
+  toggleDarkMode(event: CustomEvent) {
+    this.isDarkMode = event.detail.checked;
+    document.body.classList.toggle('dark', this.isDarkMode);
   }
 }
 
