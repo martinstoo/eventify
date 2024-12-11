@@ -30,7 +30,6 @@ export class NotificationService {
 
   log(message: string) {
     console.log(`[${new Date().toISOString()}] ${message}`);
-    // In a real-world scenario, you might want to send logs to a server or save them locally
   }
 }
 

@@ -54,15 +54,15 @@ import { Geolocation } from '@capacitor/geolocation';
   `,
   standalone: true,
   imports: [
-    IonContent, 
-    IonHeader, 
-    IonTitle, 
-    IonToolbar, 
-    IonList, 
-    IonItem, 
-    IonLabel, 
-    IonButton, 
-    IonIcon, 
+    IonContent,
+    IonHeader,
+    IonTitle,
+    IonToolbar,
+    IonList,
+    IonItem,
+    IonLabel,
+    IonButton,
+    IonIcon,
     IonInput,
     IonDatetime,
     IonButtons,
@@ -100,11 +100,12 @@ export class DashboardPage implements OnInit {
 
   createEvent() {
     if (this.eventForm.valid) {
+      const eventDate = new Date(this.eventForm.value.date);
       this.eventService.addEvent({
         title: this.eventForm.value.title,
-        date: new Date(this.eventForm.value.date),
+        date: eventDate.toISOString(),
         description: '',
-        location: this.eventForm.value.location
+        location: this.eventForm.value.location || null
       });
       this.eventForm.reset();
       this.notificationService.log('Event created');

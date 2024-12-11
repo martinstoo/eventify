@@ -1,10 +1,10 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { IonContent, IonHeader, IonTitle, IonToolbar, IonList, IonItem, IonLabel, IonButton, IonIcon, IonInput, IonButtons, IonBackButton } from '@ionic/angular/standalone';
-import { NgFor } from '@angular/common';
+import { NgFor, AsyncPipe } from '@angular/common';
 import { EventService, Guest } from '../../services/event.service';
-import { Subscription } from 'rxjs';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-guest-list',
@@ -26,9 +26,9 @@ import { Subscription } from 'rxjs';
           </ion-button>
         </ion-item>
       </form>
-      
+
       <ion-list>
-        <ion-item *ngFor="let guest of guests">
+        <ion-item *ngFor="let guest of guests$ | async">
           <ion-label>{{ guest.name }}</ion-label>
           <ion-button slot="end" (click)="removeGuest(guest)">
             <ion-icon name="trash" slot="icon-only"></ion-icon>
@@ -39,27 +39,27 @@ import { Subscription } from 'rxjs';
   `,
   standalone: true,
   imports: [
-    IonContent, 
-    IonHeader, 
-    IonTitle, 
-    IonToolbar, 
-    IonList, 
-    IonItem, 
-    IonLabel, 
-    IonButton, 
-    IonIcon, 
+    IonContent,
+    IonHeader,
+    IonTitle,
+    IonToolbar,
+    IonList,
+    IonItem,
+    IonLabel,
+    IonButton,
+    IonIcon,
     IonInput,
     IonButtons,
     IonBackButton,
-    ReactiveFormsModule,
-    NgFor
+    NgFor,
+    AsyncPipe,
+    ReactiveFormsModule
   ],
 })
-export class GuestListPage implements OnInit, OnDestroy {
+export class GuestListPage implements OnInit {
   eventId: number = 0;
-  guests: Guest[] = [];
+  guests$: Observable<Guest[]>;
   guestForm: FormGroup;
-  private guestSubscription?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -69,6 +69,7 @@ export class GuestListPage implements OnInit, OnDestroy {
     this.guestForm = this.formBuilder.group({
       name: ['', Validators.required]
     });
+    this.guests$ = new Observable<Guest[]>();
   }
 
   ngOnInit() {
@@ -79,28 +80,20 @@ export class GuestListPage implements OnInit, OnDestroy {
     }
   }
 
-  ngOnDestroy() {
-    if (this.guestSubscription) {
-      this.guestSubscription.unsubscribe();
-    }
-  }
-
   private loadGuests() {
-    this.guestSubscription = this.eventService.getGuests(this.eventId)
-      .subscribe(guests => {
-        this.guests = guests;
-      });
+    this.guests$ = this.eventService.getGuests(this.eventId);
   }
 
   async addGuest() {
     if (this.guestForm.valid) {
-      const guestName = this.guestForm.value.name;
-      await this.eventService.addGuest(this.eventId, guestName);
+      await this.eventService.addGuest(this.eventId, this.guestForm.value.name);
       this.guestForm.reset();
+      this.loadGuests();
     }
   }
 
   async removeGuest(guest: Guest) {
     await this.eventService.removeGuest(guest.id);
+    this.loadGuests();
   }
 }

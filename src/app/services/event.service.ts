@@ -1,23 +1,22 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, from, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, tap } from 'rxjs/operators';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { NotificationService } from './notification.service';
 
 export interface Event {
-  id?: number;
+  id: number;
   title: string;
-  date: Date;
-  description: string;
-  location?: string;
-  guestList?: Guest[];
+  date: string;
+  description: string | null;
+  location: string | null;
 }
 
 export interface Guest {
   id: number;
   name: string;
-  eventId: number;
+  event_id: number;
 }
 
 @Injectable({
@@ -34,15 +33,16 @@ export class EventService {
   }
 
   private async loadEvents() {
-    const { data, error } = await this.supabase
-      .from('events')
-      .select('*')
-      .order('date', { ascending: true });
+    try {
+      const { data, error } = await this.supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: true });
 
-    if (error) {
-      this.notificationService.log(`Error loading events: ${error.message}`);
-    } else {
+      if (error) throw error;
       this.eventsSubject.next(data || []);
+    } catch (error: any) {
+      this.notificationService.log(`Error loading events: ${error.message}`);
     }
   }
 
@@ -53,7 +53,10 @@ export class EventService {
   getEvent(id: number): Observable<Event | undefined> {
     return from(this.supabase
       .from('events')
-      .select('*')
+      .select(`
+        *,
+        guests (*)
+      `)
       .eq('id', id)
       .single()
     ).pipe(
@@ -68,43 +71,144 @@ export class EventService {
   }
 
   async addEvent(event: Omit<Event, 'id'>): Promise<void> {
-    const { data, error } = await this.supabase
-      .from('events')
-      .insert(event)
-      .select();
+    try {
+      const { data, error } = await this.supabase
+        .from('events')
+        .insert([{
+          title: event.title,
+          date: event.date,
+          description: event.description || null,
+          location: event.location || null
+        }])
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+
+      if (data) {
+        const currentEvents = this.eventsSubject.value;
+        this.eventsSubject.next([...currentEvents, data]);
+        this.scheduleNotification(data);
+      }
+    } catch (error: any) {
       this.notificationService.log(`Error adding event: ${error.message}`);
-    } else if (data) {
-      this.eventsSubject.next([...this.eventsSubject.value, data[0]]);
-      this.scheduleNotification(data[0]);
     }
   }
 
   async updateEvent(event: Event): Promise<void> {
-    const { error } = await this.supabase
-      .from('events')
-      .update(event)
-      .eq('id', event.id);
+    try {
+      const { error } = await this.supabase
+        .from('events')
+        .update({
+          title: event.title,
+          date: event.date,
+          description: event.description,
+          location: event.location
+        })
+        .eq('id', event.id);
 
-    if (error) {
-      this.notificationService.log(`Error updating event: ${error.message}`);
-    } else {
-      this.loadEvents();
+      if (error) throw error;
+
+      await this.loadEvents();
       this.scheduleNotification(event);
+    } catch (error: any) {
+      this.notificationService.log(`Error updating event: ${error.message}`);
     }
   }
 
   async deleteEvent(id: number): Promise<void> {
-    const { error } = await this.supabase
-      .from('events')
-      .delete()
-      .eq('id', id);
+    try {
+      await this.supabase
+        .from('guests')
+        .delete()
+        .eq('event_id', id);
 
-    if (error) {
+      const { error } = await this.supabase
+        .from('events')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await this.loadEvents();
+    } catch (error: any) {
       this.notificationService.log(`Error deleting event: ${error.message}`);
-    } else {
-      this.loadEvents();
+    }
+  }
+
+  getGuests(eventId: number): Observable<Guest[]> {
+    return from(this.loadGuestsForEvent(eventId)).pipe(
+      tap(guests => {
+        const currentGuests = { ...this.guestsSubject.value };
+        currentGuests[eventId] = guests;
+        this.guestsSubject.next(currentGuests);
+      })
+    );
+  }
+
+  private async loadGuestsForEvent(eventId: number): Promise<Guest[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('guests')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error: any) {
+      this.notificationService.log(`Error loading guests: ${error.message}`);
+      return [];
+    }
+  }
+
+  async addGuest(eventId: number, guestName: string): Promise<void> {
+    try {
+      const { data, error } = await this.supabase
+        .from('guests')
+        .insert([{
+          name: guestName,
+          event_id: eventId
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const currentGuests = { ...this.guestsSubject.value };
+        const eventGuests = currentGuests[eventId] || [];
+        currentGuests[eventId] = [...eventGuests, data];
+        this.guestsSubject.next(currentGuests);
+        this.notificationService.log('Guest added successfully');
+      }
+    } catch (error: any) {
+      this.notificationService.log(`Error adding guest: ${error.message}`);
+    }
+  }
+
+  async removeGuest(guestId: number): Promise<void> {
+    try {
+      const { data, error } = await this.supabase
+        .from('guests')
+        .delete()
+        .eq('id', guestId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const currentGuests = { ...this.guestsSubject.value };
+        const eventId = data.event_id;
+        currentGuests[eventId] = (currentGuests[eventId] || []).filter(
+          guest => guest.id !== guestId
+        );
+        this.guestsSubject.next(currentGuests);
+        this.notificationService.log('Guest removed successfully');
+      }
+    } catch (error: any) {
+      this.notificationService.log(`Error removing guest: ${error.message}`);
     }
   }
 
@@ -115,61 +219,9 @@ export class EventService {
     this.notificationService.scheduleNotification(
       'Upcoming Event',
       `${event.title} starts in 1 hour`,
-      event.id!,
+      event.id,
       { at: notificationDate }
     );
   }
-
-  getGuests(eventId: number): Observable<Guest[]> {
-    return from(this.loadGuestsForEvent(eventId)).pipe(
-      map(guests => guests || [])
-    );
-  }
-
-  private async loadGuestsForEvent(eventId: number): Promise<Guest[]> {
-    const { data, error } = await this.supabase
-      .from('guests')
-      .select('*')
-      .eq('eventId', eventId)
-      .order('name', { ascending: true });
-
-    if (error) {
-      this.notificationService.log(`Error fetching guests: ${error.message}`);
-      return [];
-    }
-
-    const currentGuests = { ...this.guestsSubject.value };
-    currentGuests[eventId] = data as Guest[];
-    this.guestsSubject.next(currentGuests);
-    return data as Guest[];
-  }
-
-  async addGuest(eventId: number, guestName: string): Promise<void> {
-    const { error } = await this.supabase
-      .from('guests')
-      .insert([{ name: guestName, eventId }]);
-
-    if (error) {
-      this.notificationService.log(`Error adding guest: ${error.message}`);
-    } else {
-      await this.loadGuestsForEvent(eventId);
-      this.notificationService.log('Guest added successfully');
-    }
-  }
-
-  async removeGuest(guestId: number): Promise<void> {
-    const { error, data } = await this.supabase
-      .from('guests')
-      .delete()
-      .eq('id', guestId)
-      .select('eventId')
-      .single();
-
-    if (error) {
-      this.notificationService.log(`Error removing guest: ${error.message}`);
-    } else if (data) {
-      await this.loadGuestsForEvent(data.eventId);
-      this.notificationService.log('Guest removed successfully');
-    }
-  }
 }
+
