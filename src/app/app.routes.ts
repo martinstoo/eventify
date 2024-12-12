@@ -7,6 +7,10 @@ export const routes: Routes = [
     pathMatch: 'full',
   },
   {
+    path: 'splash',
+    loadComponent: () => import('./splash-screen/splash-screen.component').then(m => m.SplashScreenComponent),
+  },
+  {
     path: 'dashboard',
     loadComponent: () => import('./pages/dashboard/dashboard.page').then(m => m.DashboardPage),
   },
