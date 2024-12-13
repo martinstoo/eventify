@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
+import { Platform } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { calendar, list, camera, sunny, moon, add, trash, people, location, arrowBack } from 'ionicons/icons';
+import { SplashScreen } from '@capacitor/splash-screen';
 
 @Component({
   selector: 'app-root',
@@ -14,12 +16,26 @@ import { calendar, list, camera, sunny, moon, add, trash, people, location, arro
   imports: [IonApp, IonRouterOutlet],
 })
 export class AppComponent implements OnInit {
-  constructor() {
+  constructor(private platform: Platform) {
     addIcons({ calendar, list, camera, sunny, moon, add, trash, people, location, arrowBack });
   }
 
-  ngOnInit() {
+  async ngOnInit() {
+    await this.initializeApp();
     this.initializeTheme();
+  }
+
+  private async initializeApp() {
+    await this.platform.ready();
+    // Show splash screen until app is ready
+    try {
+      await SplashScreen.show({
+        showDuration: 3000,
+        autoHide: true
+      });
+    } catch (err) {
+      console.error('Error showing splash screen:', err);
+    }
   }
 
   private initializeTheme() {
@@ -33,4 +49,3 @@ export class AppComponent implements OnInit {
     document.body.classList.toggle('dark', isDark);
   }
 }
-
